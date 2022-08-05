@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "various_western_stuff",
+  "version": "${version}",
+  "name": "VariousWesternStuff",
+  "description": "Various western things. Mostly a testing mod.",
+  "authors": [
+    "carolynkrell"
+  ],
+  "contributors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/various_western_stuff/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "io.github.carolynkrell.VariousWesternStuff"
+  ],
+    "client": [
+      "io.github.carolynkrell.VariousWesternStuffClient"
+    ],
+    "server": [],
+    "mm:early_risers": [
+      "io.github.carolynkrell.EarlyRiser"
+    ]
+  },
+  "accessWidener" : "various_western_stuff.accesswidener",
+  "mixins": [
+    "various_western_stuff.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.8",
+    "fabric": "*"
+  }
+}
