@@ -1,7 +1,7 @@
 package io.github.carolynkrell.mixin;
 
 import io.github.carolynkrell.accessor.ClientPlayerInteractionManagerAccessor;
-import io.github.carolynkrell.item.gun.GunItem;
+import io.github.carolynkrell.item.firearm.FirearmItem;
 import io.github.carolynkrell.registry.PacketRegistry;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -27,8 +27,8 @@ public abstract class ClientPlayerInteractionManagerMixin implements ClientPlaye
         ClientPlayNetworking.send(PacketRegistry.GUN_INTERACT_PACKET_ID, PacketByteBufs.create().writeEnumConstant(hand));
         if (this.gameMode != GameMode.SPECTATOR) {
             ItemStack stack = player.getStackInHand(hand);
-            if (stack.getItem() instanceof GunItem) {
-                ((GunItem) stack.getItem()).attackGun(player.getWorld(), player, hand);
+            if (stack.getItem() instanceof FirearmItem) {
+                ((FirearmItem) stack.getItem()).onAttackWithFirearm(player.getWorld(), player, hand);
             }
         }
     }

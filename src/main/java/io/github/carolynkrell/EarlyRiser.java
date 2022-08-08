@@ -10,6 +10,9 @@ public class EarlyRiser implements Runnable {
         MappingResolver remapper = FabricLoader.getInstance().getMappingResolver();
 
         String armPose = remapper.mapClassName("intermediary", "net.minecraft.class_572$class_573");
-        ClassTinkerers.enumBuilder(armPose, boolean.class).addEnum("ONE_HANDED_FIREARM", true).build();
+        ClassTinkerers.enumBuilder(armPose, boolean.class)
+                .addEnum("ONE_HANDED_FIREARM_ADS", true)
+                .addEnum("ONE_HANDED_FIREARM_RELOAD", true)
+                .build();
     }
 }

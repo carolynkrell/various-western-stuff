@@ -1,7 +1,10 @@
-package io.github.carolynkrell.item.gun;
+package io.github.carolynkrell.item.firearm;
 
 import io.github.carolynkrell.VariousWesternStuff;
-import io.github.carolynkrell.accessor.PlayerEntityGunAccessor;
+import io.github.carolynkrell.accessor.PlayerEntityAccessor;
+import io.github.carolynkrell.item.firearm.util.FirearmSettings;
+import io.github.carolynkrell.item.firearm.util.FirearmType;
+import io.github.carolynkrell.util.PlayerFirearmPose;
 import net.fabricmc.fabric.api.item.v1.FabricItem;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.entity.Entity;
@@ -26,19 +29,18 @@ import software.bernie.geckolib3.network.GeckoLibNetwork;
 import software.bernie.geckolib3.network.ISyncable;
 import software.bernie.geckolib3.util.GeckoLibUtil;
 
-public abstract class GunItem extends Item implements IAnimatable, ISyncable, FabricItem {
-    public static final FirearmPose COCKED_POSE = new FirearmPose("IsCocked");
-    public static final FirearmPose ADS_POSE = new FirearmPose("IsADS");
-    public static final FirearmPose RELOAD_POSE = new FirearmPose("IsReload");
+public abstract class FirearmItem extends Item implements IAnimatable, ISyncable, FabricItem {
+    public static final String COCKED_KEY = "IsCocked";
     private static final int ANIM_COCK = 0;
     private static final int ANIM_FIRE = 1;
-    private final GunSettings gunSettings;
+    private static final int ANIM_RELOAD = 2;
+    private final FirearmSettings firearmSettings;
 
     private final AnimationFactory factory = new AnimationFactory(this);
 
-    public GunItem(Settings settings, GunSettings gunSettings) {
+    public FirearmItem(Settings settings, FirearmSettings firearmSettings) {
         super(settings);
-        this.gunSettings = gunSettings;
+        this.firearmSettings = firearmSettings;
         GeckoLibNetwork.registerSyncable(this);
     }
 
@@ -58,30 +60,18 @@ public abstract class GunItem extends Item implements IAnimatable, ISyncable, Fa
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, World world, Entity entity, int slot, boolean selected) {
-        if (selected) {
-            if (RELOAD_POSE.isStackPosed(stack)) {
-
-            }
-        }
-        else {
-            if (ADS_POSE.isStackPosed(stack)) ADS_POSE.unposeStack(stack);
-        }
-    }
-
-    @Override
     public void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
         VariousWesternStuff.log(Level.INFO, "stopped using");
-        if (user instanceof PlayerEntity && ((PlayerEntityGunAccessor) user).isAimingDownSights()) {
-            ADS_POSE.unposeStack(stack);
+        if (user instanceof PlayerEntity && ((PlayerEntityAccessor) user).isAimingDownSights()) {
+            ((PlayerEntityAccessor) user).setFirearmPose(PlayerFirearmPose.NONE);
         }
     }
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        if (hand == Hand.MAIN_HAND && !ADS_POSE.isStackPosed(stack)) {
-            ADS_POSE.poseStack(stack);
+        if (hand == Hand.MAIN_HAND && ((PlayerEntityAccessor) user).getFirearmPose() == PlayerFirearmPose.NONE) {
+            ((PlayerEntityAccessor) user).setFirearmPose(PlayerFirearmPose.ADS);
             user.setCurrentHand(hand);
             return TypedActionResult.consume(stack);
         }
@@ -96,13 +86,15 @@ public abstract class GunItem extends Item implements IAnimatable, ISyncable, Fa
     @Override
     public void onAnimationSync(int id, int state) {
         final AnimationController<?> controller = GeckoLibUtil.getControllerForID(this.factory, id, "controller");
+        controller.markNeedsReload();
         if (state == ANIM_COCK) {
-            controller.markNeedsReload();
             controller.setAnimation(new AnimationBuilder().addAnimation("cock", false).addAnimation("cocked", true));
         }
         else if (state == ANIM_FIRE) {
-            controller.markNeedsReload();
             controller.setAnimation(new AnimationBuilder().addAnimation("fire", false));
+        }
+        else if (state == ANIM_RELOAD) {
+            //controller.setAnimation(new AnimationBuilder().addAnimation("reload"));
         }
     }
 
@@ -124,88 +116,39 @@ public abstract class GunItem extends Item implements IAnimatable, ISyncable, Fa
         }
     }
 
-    public void attackGun(World world, PlayerEntity user, Hand hand) {
+    public void onAttackWithFirearm(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
+        boolean cocked = isCocked(stack);
         if (world.isClient) {
-            if (COCKED_POSE.isStackPosed(stack)) applyRecoil(user);
+            if (cocked) applyRecoil(user);
         } else {
-            int animation = ANIM_COCK;
-            if (COCKED_POSE.isStackPosed(stack)) animation = ANIM_FIRE;
-            COCKED_POSE.setPose(stack, !COCKED_POSE.isStackPosed(stack));
+            int animation = cocked ? ANIM_FIRE : ANIM_COCK;
+            setCocked(stack, !cocked);
             syncAnimation(user, stack, world, animation);
         }
     }
 
     public void applyRecoil(PlayerEntity user) {
-        if (user instanceof PlayerEntityGunAccessor) {
-            ((PlayerEntityGunAccessor) user).applyRecoil(gunSettings.recoilSettings);
+        if (user instanceof PlayerEntityAccessor) {
+            ((PlayerEntityAccessor) user).applyRecoil(firearmSettings.recoilSettings);
         }
     }
 
-    public void setReloading(ItemStack stack) {
-        RELOAD_POSE.poseStack(stack);
-        ADS_POSE.unposeStack(stack);
-        COCKED_POSE.unposeStack(stack);
+    public boolean isCocked(ItemStack stack) {
+        NbtCompound nbt = stack.getNbt();
+        return nbt != null && nbt.getBoolean(COCKED_KEY);
     }
 
-    public static class GunSettings {
-        public ReloadStyle reloadStyle;
-        public int reloadTicks;
-        public CockStyle cockStyle;
-        public RecoilSettings recoilSettings;
-
-
-        public GunSettings(ReloadStyle reloadStyle, int reloadTicks, CockStyle cockStyle, RecoilSettings recoilSettings) {
-            this.reloadStyle = reloadStyle;
-            this.reloadTicks = reloadTicks;
-            this.cockStyle = cockStyle;
-            this.recoilSettings = recoilSettings;
-        }
+    public void setCocked(ItemStack stack, boolean cocked) {
+        NbtCompound nbt = stack.getOrCreateNbt();
+        nbt.putBoolean(COCKED_KEY, cocked);
     }
 
-    public static class RecoilSettings {
-        public float verticalStrength;
-        public float horizontalStrength;
-        public int duration;
-        public float maxVerticalSpread;
-        public float maxHorizontalSpread;
-
-        public RecoilSettings(float verticalStrength, float horizontalStrength, int duration, float maxVerticalSpread, float maxHorizontalSpread) {
-            this.verticalStrength = verticalStrength;
-            this.horizontalStrength = horizontalStrength;
-            this.duration = duration;
-            this.maxVerticalSpread = maxVerticalSpread;
-            this.maxHorizontalSpread = maxHorizontalSpread;
-        }
+    public void setPoseReloading(PlayerEntity user) {
+        ((PlayerEntityAccessor) user).setFirearmPose(PlayerFirearmPose.RELOAD);
     }
 
-    public record FirearmPose(String key) {
-        public void poseStack(ItemStack stack) {
-            setPose(stack, true);
-        }
-
-        public void unposeStack(ItemStack stack) {
-            setPose(stack, false);
-        }
-
-        public boolean isStackPosed(ItemStack stack) {
-            NbtCompound nbt = stack.getNbt();
-            return nbt != null && nbt.getBoolean(key);
-        }
-
-        public void setPose(ItemStack stack, boolean posed) {
-            NbtCompound nbt = stack.getOrCreateNbt();
-            nbt.putBoolean(key, posed);
-        }
-    }
-
-    public enum ReloadStyle {
-        SINGLE,
-        CLIP
-    }
-
-    public enum CockStyle {
-        EVERY_SHOT,
-        AFTER_RELOAD
+    public FirearmType getFirearmType() {
+        return this.firearmSettings.firearmType;
     }
 }

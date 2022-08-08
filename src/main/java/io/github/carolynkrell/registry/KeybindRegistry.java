@@ -1,6 +1,6 @@
 package io.github.carolynkrell.registry;
 
-import io.github.carolynkrell.accessor.PlayerEntityGunAccessor;
+import io.github.carolynkrell.accessor.PlayerEntityAccessor;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.option.KeyBinding;
@@ -23,7 +23,7 @@ public class KeybindRegistry {
     private static void registerEvents() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (RELOAD_KEY.isPressed()) {
-                if (client.player != null && !((PlayerEntityGunAccessor) client.player).isAimingDownSights()) {
+                if (client.player != null && !((PlayerEntityAccessor) client.player).isAimingDownSights()) {
 
                 }
             }
